@@ -24,6 +24,7 @@ import theano
 import theano.tensor as TT
 import sys
 import logging
+import math
 
 import cPickle as pkl
 
@@ -1075,7 +1076,6 @@ def do_experiment(state, channel):
                     n_samples = int(raw_input('How many samples? '))
                     alpha = float(raw_input('Inverse Temperature? '))
 
-                    seqin = seqin.lower()
                     seqin = seqin.split()
 
                     seqlen = len(seqin)
@@ -1106,11 +1106,67 @@ def do_experiment(state, channel):
                 sprobs = numpy.argsort(all_probs)
                 for pidx in sprobs:
                     print pidx,"(%f):"%(-all_probs[pidx]),sentences[pidx]
-                print
+                print sum(all_probs) / len(all_probs)
 
         except KeyboardInterrupt:
             print 'Interrupted'
-            pass
+
+    if state['entropy']:
+        # This is a test script: we only sample
+        if not hasattr(model, 'word_indxs'): model.load_dict()
+        if not hasattr(model, 'word_indxs_src'):
+            model.word_indxs_src = model.word_indxs
+
+        indx_word=pkl.load(open(state['word_indx'],'rb'))
+
+        ent_inputs = open(state['ent_inputs'], 'r')
+        ent_outputs = open(state['ent_outputs'], 'w')
+
+        for it, seqin in enumerate(ent_inputs):
+            if it % 100 == 0:
+                print "Done ", it
+            n_samples = state['ent_samples']
+            alpha = 1
+            seqin = seqin.strip().split()
+
+            seqlen = len(seqin)
+            seq = numpy.zeros(seqlen+1, dtype='int64')
+            for idx,sx in enumerate(seqin):
+                try:
+                    seq[idx] = indx_word[sx]
+                except:
+                    seq[idx] = indx_word[state['oov']]
+            seq[-1] = state['null_sym_source']
+
+            sentences = []
+            all_probs = []
+            for sidx in xrange(n_samples):
+                #import ipdb; ipdb.set_trace()
+                [values, probs] = model.sample_fn(seqlen * 3, alpha, seq)
+                sen = []
+                for k in xrange(values.shape[0]):
+                    if model.word_indxs[values[k]] == '<eol>':
+                        break
+                    sen.append(model.word_indxs[values[k]])
+                sentences.append(" ".join(sen))
+                all_probs.append(-probs)
+
+            for i in range(len(all_probs)):
+                all_probs[i] /= seqlen
+
+            sprobs = numpy.argsort(all_probs)
+            max_prob = all_probs[sprobs[-1]]
+            best_trans = sentences[sprobs[-1]]
+            print >>ent_outputs, "\t".join(map(str,
+                [" ".join(seqin),
+                    sum(all_probs) / len(all_probs),
+                    max_prob,
+                    math.exp(max_prob),
+                    best_trans]
+                ))
+
+        ent_inputs.close()
+        ent_outputs.close()
 
 def prototype_state():
     state = {}
@@ -1226,7 +1282,7 @@ def prototype_state():
     state['sample_max'] = 3
 
     # Starts a funny sampling regime
-    state['sampler_test'] = True
+    state['sampler_test'] = False
     state['seed'] = 1234
 
     # Specifies whether old model should be reloaded first
