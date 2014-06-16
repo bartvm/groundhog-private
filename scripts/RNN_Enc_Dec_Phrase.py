@@ -1111,62 +1111,105 @@ def do_experiment(state, channel):
         except KeyboardInterrupt:
             print 'Interrupted'
 
-    if state['entropy']:
-        # This is a test script: we only sample
-        if not hasattr(model, 'word_indxs'): model.load_dict()
-        if not hasattr(model, 'word_indxs_src'):
-            model.word_indxs_src = model.word_indxs
+    # MY CODE
 
-        indx_word=pkl.load(open(state['word_indx'],'rb'))
+    import traceback
+    import logging
+    logger_segm = logging.getLogger("segm")
+    logger_segm.addHandler(logging.FileHandler("phrases.txt", "w"))
+    logger_segm.setLevel(logging.DEBUG)
 
-        ent_inputs = open(state['ent_inputs'], 'r')
-        ent_outputs = open(state['ent_outputs'], 'w')
+    if not hasattr(model, 'word_indxs'): model.load_dict()
+    if not hasattr(model, 'word_indxs_src'):
+        model.word_indxs_src = model.word_indxs
 
-        for it, seqin in enumerate(ent_inputs):
-            if it % 100 == 0:
-                print "Done ", it
-            n_samples = state['ent_samples']
-            alpha = 1
-            seqin = seqin.strip().split()
+    indx_word = pkl.load(open(state['word_indx'],'rb'))
 
-            seqlen = len(seqin)
-            seq = numpy.zeros(seqlen+1, dtype='int64')
-            for idx,sx in enumerate(seqin):
-                try:
-                    seq[idx] = indx_word[sx]
-                except:
-                    seq[idx] = indx_word[state['oov']]
-            seq[-1] = state['null_sym_source']
+    def max_prob(seqin):
+        n_samples = state['n_samples']
+        alpha = 1
 
-            sentences = []
-            all_probs = []
-            for sidx in xrange(n_samples):
-                #import ipdb; ipdb.set_trace()
-                [values, probs] = model.sample_fn(seqlen * 3, alpha, seq)
-                sen = []
-                for k in xrange(values.shape[0]):
-                    if model.word_indxs[values[k]] == '<eol>':
-                        break
-                    sen.append(model.word_indxs[values[k]])
-                sentences.append(" ".join(sen))
-                all_probs.append(-probs)
+        seqlen = len(seqin)
+        seq = numpy.zeros(seqlen+1, dtype='int64')
+        for idx,sx in enumerate(seqin):
+            try:
+                seq[idx] = indx_word[sx]
+            except:
+                seq[idx] = indx_word[state['oov']]
+        seq[-1] = state['null_sym_source']
 
-            for i in range(len(all_probs)):
-                all_probs[i] /= seqlen
+        sentences = []
+        all_probs = []
+        for sidx in xrange(n_samples):
+            #import ipdb; ipdb.set_trace()
+            [values, probs] = model.sample_fn(seqlen * 3, alpha, seq)
+            sen = []
+            for k in xrange(values.shape[0]):
+                if model.word_indxs[values[k]] == '<eol>':
+                    break
+                sen.append(model.word_indxs[values[k]])
+                if sen[-1] == 'UNK':
+                    probs = 2e1
+            sentences.append(" ".join(sen))
+            all_probs.append(-probs)
 
-            sprobs = numpy.argsort(all_probs)
-            max_prob = all_probs[sprobs[-1]]
-            best_trans = sentences[sprobs[-1]]
-            print >>ent_outputs, "\t".join(map(str,
-                [" ".join(seqin),
-                    sum(all_probs) / len(all_probs),
-                    max_prob,
-                    math.exp(max_prob),
-                    best_trans]
-                ))
+        sprobs = numpy.argsort(all_probs)
+        max_prob = all_probs[sprobs[-1]]
+        best_trans = sentences[sprobs[-1]]
+        logger_segm.debug("\t".join(map(str,
+            [" ".join(seqin),
+                sum(all_probs) / len(all_probs),
+                max_prob,
+                math.exp(max_prob),
+                best_trans]
+            )))
+        return max_prob, best_trans
 
-        ent_inputs.close()
-        ent_outputs.close()
+    if state['segment']:
+        while True:
+            try:
+                sentence = raw_input("Input sequence to translate: ")
+                words = sentence.strip().split()
+                n = len(words)
+
+                cost = numpy.zeros((n + 1, n + 1))
+                translation = numpy.empty((n + 1, n + 1), dtype="object")
+                for i in range(n):
+                    for j in range(i + 1, n + 1):
+                        cost[i, j], translation[i, j] = max_prob(words[i:j])
+                logger_segm.debug(cost)
+
+                prefix_cost = -1e9 * numpy.ones(n + 1)
+                prefix_cost[0] = 0.
+                best_choice = -1 * numpy.ones(n + 1, dtype="int64")
+                best_choice[0] = 0
+
+                for i in range(2, n + 1):
+                    for j in range(max(0, i - state['phrase_max']), i):
+                        cand_cost = prefix_cost[j] + cost[j, i]
+                        if cand_cost > prefix_cost[i]:
+                            prefix_cost[i] = cand_cost
+                            best_choice[i] = j
+
+                phrase_ends = []
+                i = n
+                while i > 0:
+                    phrase_ends.append(i)
+                    i = best_choice[i]
+                phrase_ends = list(reversed(phrase_ends))
+
+                print "Best choices: ", best_choice
+                print "Phrase ends: ", phrase_ends
+                print "Segmentation and translation:"
+                start = 0
+                for finish in phrase_ends:
+                    print "{} ---> {}".format(
+                            " ".join(words[start:finish]),
+                            translation[start, finish])
+                    start = finish
+            except:
+                traceback.print_exc()
+
 
 def prototype_state():
     state = {}
@@ -1316,6 +1359,10 @@ def prototype_state():
 
     # When set to 0 each new model dump will be saved in a new file
     state['overwrite'] = 1
+
+    # MY CODE
+    state['n_samples'] = 500
+    state['phrase_max'] = 5
 
     return state
 
