@@ -860,7 +860,7 @@ def do_experiment(state, channel):
     else:
         for si in xrange(state['decoder_stack']):
             has_said[si] = Shift()(has_said[si])
-            has_said[si] = TT.set_subtensor(has_said[si][0, :, :], init_state[si])
+            has_said[si].out = TT.set_subtensor(has_said[si][0, :, :], init_state[si])
 
     model = pop_op(proj_code(everything), has_said, word=y0, aword = aword)
 
