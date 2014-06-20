@@ -1233,7 +1233,7 @@ def prototype_state():
     state['reload'] = True
 
     # Number of batches to process
-    state['loopIters'] = 50000000
+    state['loopIters'] = 3000000
     # Maximum number of minutes to run
     state['timeStop'] = 24*60*7
     # Error level to stop at
@@ -1241,8 +1241,8 @@ def prototype_state():
 
     # Resetting data iterator during training
     state['reset'] = -1
-    state['shuffle'] = True
-    state['cache_size'] = 10
+    state['shuffle'] = False
+    state['cache_size'] = 0
 
     # Frequency of training error reports (in number of batches)
     state['trainFreq'] = 1
@@ -1251,7 +1251,7 @@ def prototype_state():
     # Validation frequency
     state['validFreq'] = 500
     # Model saving frequency (in minutes)
-    state['saveFreq'] = 5
+    state['saveFreq'] = 3
 
     # Turns on profiling of training phase
     state['profile'] = 0
