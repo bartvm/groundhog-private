@@ -1115,8 +1115,8 @@ def do_experiment(state, channel):
 def prototype_state():
     state = {}
 
-    state['source'] = ["/data/lisatmp3/chokyun/mt/phrase_table.en.h5"]
-    state['target'] = ["/data/lisatmp3/chokyun/mt/phrase_table.fr.h5"]
+    state['source'] = ["/data/lisatmp3/bahdanau/shuffled/phrase-table.en.h5"]
+    state['target'] = ["/data/lisatmp3/bahdanau/shuffled/phrase-table.fr.h5"]
     state['indx_word'] = "/data/lisatmp3/chokyun/mt/ivocab_source.pkl"
     state['indx_word_target'] = "/data/lisatmp3/chokyun/mt/ivocab_target.pkl"
     state['word_indx'] = "/data/lisatmp3/chokyun/mt/vocab.en.pkl"
