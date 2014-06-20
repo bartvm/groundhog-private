@@ -931,6 +931,8 @@ def do_experiment(state, channel):
         aidx += 1; ctx = args[aidx]
         if state['avg_word']:
             aidx += 1; awrd = args[aidx]
+        else:
+            awrd = None
 
         val = pop_op(proj_code(ctx), has_said_tm1, word=word_tm1,
                 aword=awrd, one_step=True, use_noise=False)
