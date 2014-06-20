@@ -30,8 +30,6 @@ import cPickle as pkl
 theano.config.allow_gc = True
 
 logger = logging.getLogger(__name__)
-logger.addHandler(logging.StreamHandler(sys.stdout))
-logger.setLevel(logging.INFO)
 
 rect = 'lambda x:x*(x>0)'
 htanh = 'lambda x:x*(x>-1)*(x<1)'
@@ -168,6 +166,10 @@ def get_data(state):
     return train_data, valid_data, test_data
 
 def do_experiment(state, channel):
+    logging.basicConfig(level=logging.DEBUG,
+            format="%(asctime)s: %(name)s: %(levelname)s: %(message)s")
+    logger.debug("Starting state: {}".format(state))
+
     def maxout(x):
         shape = x.shape
         if x.ndim == 1:
