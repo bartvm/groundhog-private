@@ -194,11 +194,9 @@ class TMIteratorPytablesGatherProcessing(threading.Thread):
                 pass
         self.data_len = self.source_langs[-1][1].shape[0]
 
-        self.idxs = np.arange(self.data_len)
         self.datasetIter.offset = np.random.randint(self.data_len)
 
-        if self.datasetIter.shuffle:
-            np.random.shuffle(self.idxs)
+        assert not self.datasetIter.shuffle
 
         counter = 0
         while not self.exitFlag:
@@ -213,7 +211,7 @@ class TMIteratorPytablesGatherProcessing(threading.Thread):
                     while not npos and inc_offset <= self.data_len:
                         sents = np.asarray([np.cast[self.datasetIter.dtype](si) for si in
                             [source_lang[0][source_lang[1][i]['pos']:(source_lang[1][i]['pos']+source_lang[1][i]['length'])]
-                                for i in self.idxs[self.datasetIter.offset:inc_offset]]])
+                                for i in range(self.datasetIter.offset, inc_offset)]])
                         npos = len(sents)
                         nzeros = self.datasetIter.batch_size - npos
                         inc_offset += nzeros
@@ -228,7 +226,7 @@ class TMIteratorPytablesGatherProcessing(threading.Thread):
                     while not npos and inc_offset <= self.data_len:
                         sents = np.asarray([np.cast[self.datasetIter.dtype](si) for si in
                             [target_lang[0][target_lang[1][i]['pos']:(target_lang[1][i]['pos']+target_lang[1][i]['length'])]
-                                for i in self.idxs[self.datasetIter.offset:inc_offset]] if
+                                for i in range(self.datasetIter.offset, inc_offset)] if
                             len(si)>0])
                         npos = len(sents)
                         nzeros = self.datasetIter.batch_size - npos
