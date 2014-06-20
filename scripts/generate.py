@@ -14,7 +14,8 @@ params = [
     ("dict(dim=250, dim_mlp=250)", "run1"),
     ("dict(dim=500, dim_mlp=500)", "run2"),
     ("dict(rank_n_approx=200)", "run3"),
-    ("dict(rank_n_approx=500)", "run4")
+    ("dict(rank_n_approx=500)", "run4"),
+    ("dict(avg_word=False)", "run5")
     ]
 
 for options, name in params:
