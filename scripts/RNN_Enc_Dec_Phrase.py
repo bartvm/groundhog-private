@@ -1276,7 +1276,7 @@ def experiment(state, channel):
 
 if __name__ == "__main__":
     state = prototype_state()
-    options = eval(sys.argv[1])
+    options = eval(sys.argv[1]) if len(sys.argv) > 1 else dict()
     state.update(options)
     do_experiment(state, None)
 
