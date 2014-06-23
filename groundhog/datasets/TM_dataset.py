@@ -194,9 +194,9 @@ class TMIteratorPytablesGatherProcessing(threading.Thread):
                 pass
         self.data_len = self.source_langs[-1][1].shape[0]
 
-        self.datasetIter.offset = np.random.randint(self.data_len)
-
-        assert not self.datasetIter.shuffle
+        self.datasetIter.shuffle = 0
+        if self.datasetIter.shuffle:
+            self.datasetIter.offset = np.random.randint(self.data_len)
 
         counter = 0
         while not self.exitFlag:
