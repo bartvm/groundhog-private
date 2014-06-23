@@ -18,6 +18,9 @@ import threading
 import Queue
 
 import collections
+import logging
+
+logger = logging.getLogger(__name__)
 
 class TMIterator(object):
 
@@ -197,6 +200,9 @@ class TMIteratorPytablesGatherProcessing(threading.Thread):
         self.datasetIter.shuffle = 0
         if self.datasetIter.shuffle:
             self.datasetIter.offset = np.random.randint(self.data_len)
+
+        logger.debug("dataset size: {}".format(self.data_len))
+        logger.debug("start from: {}".format(self.datasetIter.offset))
 
         counter = 0
         while not self.exitFlag:
