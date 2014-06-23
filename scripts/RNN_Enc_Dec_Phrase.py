@@ -19,6 +19,8 @@ from groundhog.layers import last
 from groundhog.models import LM_Model
 from theano.sandbox.scan import scan
 
+import time
+import tables
 import numpy
 import theano
 import theano.tensor as TT
@@ -159,7 +161,8 @@ def get_data(state):
         can_fit=False,
         queue_size=10,
         cache_size=state['cache_size'],
-        shuffle=state['shuffle'])
+        shuffle=state['shuffle'],
+        use_infinite_loop=state['loop'])
 
     valid_data = None
     test_data = None
@@ -186,12 +189,7 @@ def do_experiment(state, channel):
 
     logger.info("Start loading")
     rng = numpy.random.RandomState(state['seed'])
-    if state['loopIters'] > 0:
-        train_data, valid_data, test_data = get_data(state)
-    else:
-        train_data = None
-        valid_data = None
-        test_data = None
+    train_data, valid_data, test_data = get_data(state)
 
     logger.info("Build layers")
     if state['bs'] == 1:
@@ -206,6 +204,7 @@ def do_experiment(state, channel):
         y = TT.lmatrix('y')
         y0 = y
         y_mask = TT.matrix('y_mask')
+    scoring_inputs = [x, x_mask, y, y_mask]
 
     bs = state['bs']
 
@@ -1007,8 +1006,7 @@ def do_experiment(state, channel):
         character_level=False,
         rng=rng)
 
-    if state['loopIters'] > 0: algo = SGD(model, state, train_data)
-    else: algo = None
+    algo = SGD(model, state, train_data)
 
     def hook_fn():
         if not hasattr(model, 'word_indxs'): model.load_dict()
@@ -1062,7 +1060,44 @@ def do_experiment(state, channel):
     main = MainLoop(train_data, valid_data, None, model, algo, state, channel,
             reset = state['reset'], hooks = hook_fn)
     if state['reload']: main.load()
-    if state['loopIters'] > 0: main.main()
+    main.main()
+
+    if state["scoring"]:
+        score_file = open(state["score_file"], "w")
+
+        logger.info("Compiling score function")
+        score_fn = theano.function(scoring_inputs, [-nll.cost_per_sample])
+
+        count = 0
+        n_samples = 0
+        logger.info('Scoring phrases')
+        for batch in train_data:
+            if batch == None:
+                continue
+            if batch['x'].shape[0] <= 0 or \
+                    batch['x_mask'].shape[0] <= 0 or \
+                    batch['y'].shape[0] <= 0 or \
+                    batch['y_mask'].shape[0] <= 0:
+                logger.error('Wrong batch!!!')
+                continue
+            st = time.time()
+            [scores] = score_fn(batch['x'], batch['x_mask'],
+                    batch['y'], batch['y_mask'])
+            up_time = time.time() - st
+            for s in scores:
+                print >>score_file, "{:.5f}".format(float(s))
+
+            n_samples += batch['x'].shape[1]
+            count += 1
+
+            if state['flush_scores'] >= 1 and count % state['flush_scores'] == 0:
+                score_file.flush()
+                logger.debug("Scores flushed")
+            logger.debug("{} batches, {} samples, {} per sample; example scores: {}".format(
+                count, n_samples, up_time/scores.shape[0], scores[:5]))
+        logger.info("Done")
+        score_file.flush()
+        score_file.close()
 
     if state['sampler_test']:
         # This is a test script: we only sample
@@ -1233,6 +1268,12 @@ def prototype_state():
     state['sampler_test'] = True
     state['seed'] = 1234
 
+    # Starts scoring regime
+    state['scoring'] = False
+    # state['score_file'] = "scores.h5"
+    state['score_file'] = "scores.txt"
+    state['flush_scores'] = 1000
+
     # Specifies whether old model should be reloaded first
     state['reload'] = True
 
@@ -1247,6 +1288,8 @@ def prototype_state():
     state['reset'] = -1
     state['shuffle'] = False
     state['cache_size'] = 0
+    state['loop'] = False
+    state['rand_start'] = False
 
     # Frequency of training error reports (in number of batches)
     state['trainFreq'] = 1
@@ -1276,7 +1319,7 @@ def experiment(state, channel):
 
 if __name__ == "__main__":
     state = prototype_state()
-    options = eval(sys.argv[1]) if len(sys.argv) > 1 else dict()
+    options = eval("dict({})".format(", ".join(sys.argv[1:]))) if len(sys.argv) > 1 else dict()
     state.update(options)
     do_experiment(state, None)
 
