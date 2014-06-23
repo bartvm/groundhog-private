@@ -1051,6 +1051,7 @@ class SoftmaxLayer(CostLayer):
         assert target, 'Computing the cost requires a target'
         shape0 = class_probs.shape[0]
         shape1 = class_probs.shape[1]
+        target_shape = target.shape
         if target.ndim > 1:
             target = target.flatten()
         assert target.ndim == 1, 'make sure target is a vector of ints'
@@ -1062,6 +1063,7 @@ class SoftmaxLayer(CostLayer):
 
         if mask:
             cost = cost * TT.cast(mask.flatten(), theano.config.floatX)
+        self.cost_per_sample = cost.reshape(target_shape).sum(axis=0)
 
         if sum_over_time is None:
             sum_over_time = self.sum_over_time
