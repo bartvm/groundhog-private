@@ -54,7 +54,7 @@ def main():
         state['source'] = [args.src]
         state['target'] = [args.trg]
         state['shuffle'] = False
-
+        state['use_infinite_loop'] = False
         data_iter = get_batch_iterator(state, rng)
 
         scorer = enc_dec.create_scorer(batch=True)
