@@ -46,6 +46,7 @@ def main():
     lm_model = enc_dec.create_lm_model()
     lm_model.load(args.model_path)
 
+    score_file = open(args.scores, "w")
     if args.mode == "hdf5":
         assert args.src and args.trg
 
@@ -54,7 +55,6 @@ def main():
         state['shuffle'] = False
 
         data_iter = get_batch_iterator(state, rng)
-        score_file = open(args.scores, "w")
 
         scorer = enc_dec.create_scorer(batch=True)
 
@@ -83,8 +83,6 @@ def main():
                 count, n_samples, up_time/scores.shape[0], scores[:5]))
 
         logger.info("Done")
-        score_file.flush()
-        score_file.close()
     elif args.mode == "interact":
         scorer = enc_dec.create_scorer()
         indx_word_src = cPickle.load(open(state['word_indx'],'rb'))
@@ -117,9 +115,11 @@ def main():
                 src_seq = parse_input(state, indx_word_src, src_line, raise_unk=True)
                 trgt_seq = parse_input(state, indx_word_trgt, trgt_line, raise_unk=True)
                 probs = compute_probs(src_seq, trgt_seq)
-                print -numpy.sum(numpy.log(probs))
+                print >>score_file, "{:.5e}".format(float(-numpy.sum(numpy.log(probs))))
         except StopIteration:
             pass
+    score_file.flush()
+    score_file.close()
 
 if __name__ == "__main__":
     main()
