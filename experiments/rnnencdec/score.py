@@ -24,7 +24,8 @@ def parse_args():
     parser.add_argument("--scores", default="scores.txt", help="Save scores to")
     parser.add_argument("--print-probs", action="store_true", default=False,
         help="Print probabilities instead of log-likelihoods")
-    parser.add_argument("--mode", default="interact", help="What to do")
+    parser.add_argument("--mode", default="interact",
+            help="Input format, one of 'hdf5', 'txt', 'interact'")
     parser.add_argument("model_path", help="Path to the model")
     parser.add_argument("changes",  nargs="?", help="Changes to state", default="")
     return parser.parse_args()
@@ -41,7 +42,7 @@ def main():
     logging.basicConfig(level=getattr(logging, state['level']), format="%(asctime)s: %(name)s: %(levelname)s: %(message)s")
 
     rng = numpy.random.RandomState(state['seed'])
-    enc_dec = RNNEncoderDecoder(state, rng)
+    enc_dec = RNNEncoderDecoder(state, rng, skip_init=True)
     enc_dec.build()
     lm_model = enc_dec.create_lm_model()
     lm_model.load(args.model_path)
@@ -118,6 +119,8 @@ def main():
                 print >>score_file, "{:.5e}".format(float(-numpy.sum(numpy.log(probs))))
         except StopIteration:
             pass
+    else:
+        raise Exception("Unknown mode {}".format(args.mode))
     score_file.flush()
     score_file.close()
 
