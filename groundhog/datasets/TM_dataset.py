@@ -212,7 +212,7 @@ class PytablesBitextFetcher(threading.Thread):
             if len(source_sents):
                 diter.queue.put([source_sents, target_sents])
             if last_batch:
-                diter.queue.put([None])
+                diter.queue.put(None)
                 return
 
 class PytablesBitextIterator(object):
